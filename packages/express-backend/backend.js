@@ -9,20 +9,22 @@ dotenv.config();
 const { MONGO_CONNECTION_STRING } = process.env;
 
 mongoose.set("debug", true);
+console.log("MongoDB URI:", MONGO_CONNECTION_STRING ? "Loaded Successfully" : "Not Loaded");
 mongoose
-  .connect(MONGO_CONNECTION_STRING + "users") // connect to Db "users"
+  .connect(MONGO_CONNECTION_STRING)
+  .then(() => console.log("Connected to MongoDB"))
   .catch((error) => console.log(error));
   
 const app = express();
+const port = 8000;
 app.use(cors());
 app.use(express.json());
-const port = 8000;
 
 app.get("/users", (req, res) => {
   const {name, job} = req.query;
   userService
     .getUsers(name, job)
-    .then((users) => res.send({users_list: users}))
+    .then((users) => res.json({users_list: users}))
     .catch((err) => res.status(500).send({error: err.message}));
 });
   
@@ -31,26 +33,36 @@ app.get("/users", (req, res) => {
     userService
       .findUserById(id)
       .then((user) => {
-        if(user) res.send(user);
-        else res.status(404).send("Not Found");
+        if(user) {
+          res.json(user);
+        } else {
+          res.status(404).send("Not Found") 
+        }
     })
     .catch((err) => res.status(500).send({error: err.message}));
   });
   
   app.post("/users", (req, res) => {
     const userToAdd = req.body;
-    if (!userToAdd.name || !userToAdd.job) {
-      res.status(400).send({error: "Missing required fields"});
-      return; 
-    }
     userService
       .addUser(userToAdd)
       .then((newUser) => res.status(201).json(newUser))
       .catch((err) => res.status(500).send({error: err.message}));
   });
+  
+  app.delete("/users/:id", (req, res) => {
+    const id =req.params.id;
+    userService
+    .deleteUserById(id)
+    .then((user) => {
+      if (user) {
+        res.status(204).send();
+      } else {
+        res.status(404).send("Not Found")
+      }
+    })
+  })
 
 app.listen(port, () => {
-  console.log(
-    `Example app listening at http://localhost:${port}`
-  );
+  console.log(`Example app listening at http://localhost:${port}`);
 });
